@@ -3,12 +3,13 @@
 //then F5 resumes it
 //hovering over variables during runtime give their values
 //hovering over pointers during runtime gives their momory location
+#include "utils.cpp"
 #include <Windows.h>
 //winmain doc for entry point for graphical windows based app
 //https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-winmain
 
 //game loop will execute as long as running is true
-bool running = true;
+global_variable bool running = true;
 
 struct Render_State {
 	//dimensions of the window
@@ -22,7 +23,15 @@ struct Render_State {
 	BITMAPINFO bitmap_info;
 };
 
-Render_State render_state;
+global_variable Render_State render_state;
+
+//compilation :
+//usually all the cpp files are compiled into intermediate .obj files and link them to get the exe
+//here we're going to use unity build :
+//cpp files are imported into one maste file that becomes .obj that becomes .exe
+//easier file interation + faster compilation
+//IMPORTANT for files that are not master : file -> properties -> excluded from build = YES
+#include "renderer.cpp"
 
 //class for window callback events, called when window wants to pass message
 LRESULT CALLBACK window_callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
@@ -77,7 +86,6 @@ LRESULT CALLBACK window_callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
 	}
 	return result;
 }
-
 
 //on first try error will occur
 //To fix : app properties -> linker -> system -> 
@@ -140,17 +148,8 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
 		}
 
 		//Simulate
-		//current pixel pointer indicating pixel that we want to fill starting with the first one in the buffer
-		unsigned int* pixel = (unsigned int*)render_state.memory;
-		//iteration through all the height and width pixels
-		for (int y = 0; y < render_state.height; y++) {
-			for (int x = 0; x < render_state.width; x++) {
-				//here pixel is incremented to point to the next one
-				//if not screen is just black
-				//here playing with the color formulas make for interesting results
-				*pixel++ = 0x000000;
-			}
-		}
+		clear_screen(0xff0000);
+		draw_rect(0, 0, 2, 2, 0xffffff);
 
 		//Render
 		//at first this will render a black screen because the memory is 0. meaning?
