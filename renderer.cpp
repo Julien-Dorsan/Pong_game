@@ -52,6 +52,8 @@ draw_rect_in_pixels(int x0, int y0, int x1, int y1, u32 color) {
 //here f is used to specify that a float should be obtained
 global_variable float render_scale = 0.01f;
 
+//x = width / y = height
+
 internal void
 draw_rect(float x, float y, float half_size_x, float half_size_y, u32 color) {
 	//this makes the rect scale withe the window height
@@ -73,4 +75,3 @@ draw_rect(float x, float y, float half_size_x, float half_size_y, u32 color) {
 
 	draw_rect_in_pixels(x0, y0, x1, y1, color);
 }
-

@@ -4,6 +4,7 @@
 //hovering over variables during runtime give their values
 //hovering over pointers during runtime gives their momory location
 #include "utils.cpp"
+#include "physics.cpp"
 #include <Windows.h>
 //winmain doc for entry point for graphical windows based app
 //https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-winmain
@@ -31,7 +32,10 @@ global_variable Render_State render_state;
 //cpp files are imported into one maste file that becomes .obj that becomes .exe
 //easier file interation + faster compilation
 //IMPORTANT for files that are not master : file -> properties -> excluded from build = YES
+#include "platform_common.cpp"
 #include "renderer.cpp"
+#include "game.cpp"
+#include "physics.cpp"
 
 //class for window callback events, called when window wants to pass message
 LRESULT CALLBACK window_callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
@@ -133,29 +137,68 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
 	//gets the window device context
 	HDC hdc = GetDC(window);
 
+	//creation/initialisation ? of the input struct
+	Input input = {};
+
 	while (running) {
 		//Input
 		MSG message;
+
+		//reset of button change at the begining of each frame
+		for (int i = 0; i < BUTTON_COUNT; i++) {
+			input.buttons[i].changed = false;
+		}
+
 		//gets all the pending messages
 		// then translates it to characters
 		// then dispatches it to a window procedure
 		//https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-peekmessagea
 		while (PeekMessage(&message, window, 0, 0, PM_REMOVE)) {
-			//https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-translatemessage
-			TranslateMessage(&message);
-			//https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-dispatchmessage
-			DispatchMessage(&message);
+			switch (message.message){
+				//If an iteraction with a button is detected this fires
+				case WM_KEYUP:
+				case WM_KEYDOWN: {
+					//stands for virtual key
+					//https://learn.microsoft.com/fr-fr/windows/win32/inputdev/virtual-key-codes
+					u32 vk_code = (u32)message.wParam;
+					bool is_down = ((message.lParam & (1 << 31)) == 0);
+
+#define process_button(b, vk)\
+case vk: {\
+input.buttons[b].is_down = is_down;\
+input.buttons[b].changed = true;\
+}break;
+
+					//will evaluate only the button related to the program
+					switch (vk_code){
+						process_button(BUTTON_UP, VK_UP);
+						process_button(BUTTON_DOWN, VK_DOWN);
+						process_button(BUTTON_LEFT, VK_LEFT);
+						process_button(BUTTON_RIGHT, VK_RIGHT);
+						process_button(BUTTON_SPACE, VK_SPACE);
+					}
+
+				}break;
+				//any message that is not related to the stated case above
+				default: {
+					//https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-translatemessage
+					TranslateMessage(&message);
+					//https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-dispatchmessage
+					DispatchMessage(&message);
+				}
+			}
 		}
 
 		//Simulate
-		clear_screen(0xff0000);
-		draw_rect(0, 0, 2, 2, 0xffffff);
+		simulate_game(&input);
 
 		//Render
 		//at first this will render a black screen because the memory is 0. meaning?
 		//arg1 : device context = the window used
 		//https://learn.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-stretchdibits
 		StretchDIBits(hdc, 0, 0, render_state.width, render_state.height, 0, 0, render_state.width, render_state.height, render_state.memory, &render_state.bitmap_info, DIB_RGB_COLORS, SRCCOPY);
+
+		Sleep(1);
 	}
 }
 
