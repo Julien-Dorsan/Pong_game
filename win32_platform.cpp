@@ -140,6 +140,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
 	//creation/initialisation ? of the input struct
 	Input input = {};
 
+	//game loop
 	while (running) {
 		//Input
 		MSG message;
@@ -189,7 +190,7 @@ input.buttons[b].changed = true;\
 			}
 		}
 
-		//Simulate
+		//Simulate the game inside the created window
 		simulate_game(&input);
 
 		//Render
@@ -198,6 +199,7 @@ input.buttons[b].changed = true;\
 		//https://learn.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-stretchdibits
 		StretchDIBits(hdc, 0, 0, render_state.width, render_state.height, 0, 0, render_state.width, render_state.height, render_state.memory, &render_state.bitmap_info, DIB_RGB_COLORS, SRCCOPY);
 
+		//pauses for a given interval on each iteration
 		Sleep(1);
 	}
 }
