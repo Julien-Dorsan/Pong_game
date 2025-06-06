@@ -140,6 +140,22 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
 	//creation/initialisation ? of the input struct
 	Input input = {};
 
+	//variables to track framerate / time between frame
+	//time in one frame (assumed to be 60 for the first one)
+	float delta_time = 0.016666f;
+	//CPU time
+	LARGE_INTEGER frame_begin_time;
+	//pointer for CPU time variable
+	QueryPerformanceCounter(&frame_begin_time);
+
+	//returns how many cycle can be ran in 1 second
+	float performance_frequency;
+	{
+		LARGE_INTEGER perf;
+		QueryPerformanceFrequency(&perf);
+		performance_frequency = (float)perf.QuadPart;
+	}
+
 	//game loop
 	while (running) {
 		//Input
@@ -190,8 +206,9 @@ input.buttons[b].changed = true;\
 			}
 		}
 
-		//Simulate the game inside the created window
-		simulate_game(&input);
+		//Simulates the game inside the created window
+		//takes the user's inputs and "framerate" as args
+		simulate_game(&input, delta_time);
 
 		//Render
 		//at first this will render a black screen because the memory is 0. meaning?
@@ -199,8 +216,15 @@ input.buttons[b].changed = true;\
 		//https://learn.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-stretchdibits
 		StretchDIBits(hdc, 0, 0, render_state.width, render_state.height, 0, 0, render_state.width, render_state.height, render_state.memory, &render_state.bitmap_info, DIB_RGB_COLORS, SRCCOPY);
 
-		//pauses for a given interval on each iteration
-		Sleep(1);
+		//CPU time
+		LARGE_INTEGER frame_end_time;
+		//pointer for CPU time variable
+		QueryPerformanceCounter(&frame_end_time);
+		//time elapsed between end frame and begin frame as an signed 64bit integer
+		//divided by performance frequency to convert CPU time to seconds
+		delta_time = (float)(frame_end_time.QuadPart - frame_begin_time.QuadPart) / performance_frequency;
+		//sets new begin time to track next frame
+		frame_begin_time = frame_end_time;
 	}
 }
 

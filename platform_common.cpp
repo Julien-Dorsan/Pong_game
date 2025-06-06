@@ -3,6 +3,7 @@ struct Button_State {
 	bool changed;
 };
 
+//available inputs
 enum {
 	BUTTON_UP,
 	BUTTON_DOWN,
