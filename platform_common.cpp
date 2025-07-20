@@ -9,7 +9,10 @@ enum {
 	BUTTON_DOWN,
 	BUTTON_LEFT,
 	BUTTON_RIGHT,
+	BUTTON_Z,
+	BUTTON_S,
 	BUTTON_SPACE,
+	BUTTON_ENTER,
 	
 	//should be the last to then create an array
 	BUTTON_COUNT,

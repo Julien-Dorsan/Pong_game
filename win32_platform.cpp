@@ -3,11 +3,12 @@
 //then F5 resumes it
 //hovering over variables during runtime give their values
 //hovering over pointers during runtime gives their momory location
-#include "utils.cpp"
-#include "physics.cpp"
-#include <Windows.h>
+
 //winmain doc for entry point for graphical windows based app
 //https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-winmain
+#include "utils.cpp"
+#include <Windows.h>
+
 
 //game loop will execute as long as running is true
 global_variable bool running = true;
@@ -31,12 +32,10 @@ global_variable Render_State render_state;
 //here we're going to use unity build :
 //cpp files are imported into one maste file that becomes .obj that becomes .exe
 //easier file interation + faster compilation
-//IMPORTANT for files that are not master : file -> properties -> excluded from build = YES
+//IMPORTANT for files that are not master : file -> properties -> general -> excluded from build = YES
 #include "platform_common.cpp"
 #include "renderer.cpp"
 #include "game.cpp"
-#include "physics.cpp"
-
 //class for window callback events, called when window wants to pass message
 LRESULT CALLBACK window_callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 	//creates a value that should be used as a return value for a window procedure
@@ -91,13 +90,15 @@ LRESULT CALLBACK window_callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
 	return result;
 }
 
+
 //on first try error will occur
 //To fix : app properties -> linker -> system -> 
 //configuration : all configuration | paltform : all platform | subsytem : Windows
 //https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-winmain
 int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) {
+	//optional functions call
+	ShowCursor(FALSE);
 	//Create Window Class
-
 	//class creation
 	//https://learn.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-wndclassa
 	WNDCLASS window_class = {};
@@ -123,7 +124,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
 	//https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-createwindowa
 	HWND window = CreateWindow(
 		window_class.lpszClassName, /*lpClassName*/
-		"Pong Game", /*lpWindowName*/
+		"My First Pong Game", /*lpWindowName*/
 		WS_OVERLAPPEDWINDOW | WS_VISIBLE, /*dwStyle*/
 		CW_USEDEFAULT,
 		CW_USEDEFAULT,
@@ -133,6 +134,17 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
 		0, /*nHeight*/
 		hInstance, /*hWndParent*/
 		0 /*lpParam?*/);
+
+	//Make the window fullscreen
+	{
+		//Overlapped flag set to false
+		SetWindowLong(window, GWL_STYLE, GetWindowLong(window, GWL_STYLE) & ~WS_OVERLAPPEDWINDOW);
+		//get monitor info
+		MONITORINFO mi = { sizeof(mi) };
+		GetMonitorInfo(MonitorFromWindow(window, MONITOR_DEFAULTTOPRIMARY), &mi);
+		//set the window to be on top and height and width are screen dimension
+		SetWindowPos(window, HWND_TOP, mi.rcMonitor.left, mi.rcMonitor.top, mi.rcMonitor.right - mi.rcMonitor.left, mi.rcMonitor.bottom - mi.rcMonitor.top, SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+	}
 
 	//gets the window device context
 	HDC hdc = GetDC(window);
@@ -179,20 +191,24 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
 					//https://learn.microsoft.com/fr-fr/windows/win32/inputdev/virtual-key-codes
 					u32 vk_code = (u32)message.wParam;
 					bool is_down = ((message.lParam & (1 << 31)) == 0);
-
+//changed tracks only the initial input and not hold input
 #define process_button(b, vk)\
 case vk: {\
+input.buttons[b].changed = is_down != input.buttons[b].is_down;\
 input.buttons[b].is_down = is_down;\
-input.buttons[b].changed = true;\
 }break;
 
 					//will evaluate only the button related to the program
+					//Single quotes to pass a char and not a const char
 					switch (vk_code){
 						process_button(BUTTON_UP, VK_UP);
 						process_button(BUTTON_DOWN, VK_DOWN);
 						process_button(BUTTON_LEFT, VK_LEFT);
 						process_button(BUTTON_RIGHT, VK_RIGHT);
+						process_button(BUTTON_Z, 'Z');
+						process_button(BUTTON_S, 'S');
 						process_button(BUTTON_SPACE, VK_SPACE);
+						process_button(BUTTON_ENTER, VK_RETURN);
 					}
 
 				}break;
@@ -209,6 +225,7 @@ input.buttons[b].changed = true;\
 		//Simulates the game inside the created window
 		//takes the user's inputs and "framerate" as args
 		simulate_game(&input, delta_time);
+
 
 		//Render
 		//at first this will render a black screen because the memory is 0. meaning?
