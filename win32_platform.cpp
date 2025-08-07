@@ -6,17 +6,27 @@
 
 //winmain doc for entry point for graphical windows based app
 //https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-winmain
+#include <random>
+#include <iostream>
+#include <chrono>
 #include "utils.cpp"
-#include <Windows.h>
+//windows stuff (window, inputs, perf queries)
+#include <windows.h>
+///sound stuff
+#include <mmsystem.h>
+#pragma comment(lib, "winmm.lib")
 
+//directive for debug related code, #debug are used a bit everywhere
+#define debug false
 
-//game loop will execute as long as running is true
+//game loop var
 global_variable bool running = true;
+global_variable bool activate_sound = true;
 
 struct Render_State {
 	//dimensions of the window
 	int height, width;
-	
+
 	//pointer to make it persistant over different functions, not knowing the type is not an issue
 	//void makes variables globals (stored in the data section)
 	void* memory;
@@ -45,52 +55,49 @@ LRESULT CALLBACK window_callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
 	switch (uMsg) {
 		//when evaluated both return 0
 		//sent when a window or application should end
-		case WM_CLOSE:
+	case WM_CLOSE:
 		//a window is being destroyed
-		case WM_DESTROY: {
-			running = false;
-		}break;
+	case WM_DESTROY: {
+		running = false;
+	}break;
 
-		//sent when size of the window is changed
-		//https://learn.microsoft.com/en-us/windows/win32/winmsg/wm-size
-		case WM_SIZE: {
-			//rect contains pointer to RECT struct containing the up, bottom, left, right values of a given window
-			RECT rect;
-			//linking the rect struct to a specific window
-			GetClientRect(hwnd, &rect);
-			//calculations to get exact width | height
-			render_state.width = rect.right - rect.left;
-			render_state.height = rect.bottom - rect.top;
-			
-			//resizable buffer size
-			int buffer_size = render_state.width * render_state.height * sizeof(unsigned int);
+				   //sent when size of the window is changed
+				   //https://learn.microsoft.com/en-us/windows/win32/winmsg/wm-size
+	case WM_SIZE: {
+		//rect contains pointer to RECT struct containing the up, bottom, left, right values of a given window
+		RECT rect;
+		//linking the rect struct to a specific window
+		GetClientRect(hwnd, &rect);
+		//calculations to get exact width | height
+		render_state.width = rect.right - rect.left;
+		render_state.height = rect.bottom - rect.top;
 
-			//ensures dynamic memory allocation based on needs
-			//if the buffer exists the memory is freed then realocated
-			if (render_state.memory) VirtualFree(render_state.memory, 0, MEM_RELEASE);
-			render_state.memory = VirtualAlloc(0, buffer_size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+		//resizable buffer size
+		int buffer_size = render_state.width * render_state.height * sizeof(unsigned int);
 
-			//https://learn.microsoft.com/en-us/windows/win32/api/wingdi/ns-wingdi-bitmapinfoheader
-			//contains information about the dimensions and color format of a device - independent bitmap
-			render_state.bitmap_info.bmiHeader.biSize = sizeof(render_state.bitmap_info.bmiHeader);
-			render_state.bitmap_info.bmiHeader.biWidth = render_state.width;
-			render_state.bitmap_info.bmiHeader.biHeight = render_state.height;
-			render_state.bitmap_info.bmiHeader.biPlanes = 1;
-			render_state.bitmap_info.bmiHeader.biBitCount = 32;
-			render_state.bitmap_info.bmiHeader.biCompression = BI_RGB;
-			
-		}break;
+		//ensures dynamic memory allocation based on needs
+		//if the buffer exists the memory is freed then realocated
+		if (render_state.memory) VirtualFree(render_state.memory, 0, MEM_RELEASE);
+		render_state.memory = VirtualAlloc(0, buffer_size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 
-		default: {
-			//this return passes all the parameters recieved
-			result = DefWindowProc(hwnd, uMsg, wParam, lParam);
-		}
+		//https://learn.microsoft.com/en-us/windows/win32/api/wingdi/ns-wingdi-bitmapinfoheader
+		//contains information about the dimensions and color format of a device - independent bitmap
+		render_state.bitmap_info.bmiHeader.biSize = sizeof(render_state.bitmap_info.bmiHeader);
+		render_state.bitmap_info.bmiHeader.biWidth = render_state.width;
+		render_state.bitmap_info.bmiHeader.biHeight = render_state.height;
+		render_state.bitmap_info.bmiHeader.biPlanes = 1;
+		render_state.bitmap_info.bmiHeader.biBitCount = 32;
+		render_state.bitmap_info.bmiHeader.biCompression = BI_RGB;
+	}break;
+
+	default: {
+		//this return passes all the parameters recieved
+		result = DefWindowProc(hwnd, uMsg, wParam, lParam);
+	}
 
 	}
 	return result;
 }
-
-
 //on first try error will occur
 //To fix : app properties -> linker -> system -> 
 //configuration : all configuration | paltform : all platform | subsytem : Windows
@@ -110,7 +117,6 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
 	//window callback function to recieve user interaction with it
 	window_class.lpfnWndProc = window_callback;
 
-
 	//Register Class
 	//here a pointer is used to get to the memory location of window_class and all of its information
 	//also no copy of window_class and the class itself are not directly passed that way
@@ -118,8 +124,6 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
 	//pointers are fun!!
 	//https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-registerclassa
 	RegisterClass(&window_class);
-
-
 	//Create Window
 	//https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-createwindowa
 	HWND window = CreateWindow(
@@ -134,7 +138,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
 		0, /*nHeight*/
 		hInstance, /*hWndParent*/
 		0 /*lpParam?*/);
-
+#if !debug
 	//Make the window fullscreen
 	{
 		//Overlapped flag set to false
@@ -143,8 +147,15 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
 		MONITORINFO mi = { sizeof(mi) };
 		GetMonitorInfo(MonitorFromWindow(window, MONITOR_DEFAULTTOPRIMARY), &mi);
 		//set the window to be on top and height and width are screen dimension
-		SetWindowPos(window, HWND_TOP, mi.rcMonitor.left, mi.rcMonitor.top, mi.rcMonitor.right - mi.rcMonitor.left, mi.rcMonitor.bottom - mi.rcMonitor.top, SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+		SetWindowPos(window,
+			HWND_TOP,
+			mi.rcMonitor.left,
+			mi.rcMonitor.top,
+			mi.rcMonitor.right - mi.rcMonitor.left,
+			mi.rcMonitor.bottom - mi.rcMonitor.top,
+			SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
 	}
+#endif
 
 	//gets the window device context
 	HDC hdc = GetDC(window);
@@ -183,49 +194,53 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
 		// then dispatches it to a window procedure
 		//https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-peekmessagea
 		while (PeekMessage(&message, window, 0, 0, PM_REMOVE)) {
-			switch (message.message){
+			switch (message.message) {
 				//If an iteraction with a button is detected this fires
-				case WM_KEYUP:
-				case WM_KEYDOWN: {
-					//stands for virtual key
-					//https://learn.microsoft.com/fr-fr/windows/win32/inputdev/virtual-key-codes
-					u32 vk_code = (u32)message.wParam;
-					bool is_down = ((message.lParam & (1 << 31)) == 0);
-//changed tracks only the initial input and not hold input
+			case WM_KEYUP:
+			case WM_KEYDOWN: {
+				//stands for virtual key
+				//https://learn.microsoft.com/fr-fr/windows/win32/inputdev/virtual-key-codes
+				u32 vk_code = (u32)message.wParam;
+				bool is_down = ((message.lParam & (1 << 31)) == 0);
+				//changed tracks only the initial input and not hold input
 #define process_button(b, vk)\
-case vk: {\
-input.buttons[b].changed = is_down != input.buttons[b].is_down;\
-input.buttons[b].is_down = is_down;\
-}break;
+	case vk: {\
+	input.buttons[b].changed = is_down != input.buttons[b].is_down;\
+	input.buttons[b].is_down = is_down;\
+	}break;
 
-					//will evaluate only the button related to the program
-					//Single quotes to pass a char and not a const char
-					switch (vk_code){
-						process_button(BUTTON_UP, VK_UP);
-						process_button(BUTTON_DOWN, VK_DOWN);
-						process_button(BUTTON_LEFT, VK_LEFT);
-						process_button(BUTTON_RIGHT, VK_RIGHT);
-						process_button(BUTTON_Z, 'Z');
-						process_button(BUTTON_S, 'S');
-						process_button(BUTTON_SPACE, VK_SPACE);
-						process_button(BUTTON_ENTER, VK_RETURN);
-					}
-
-				}break;
-				//any message that is not related to the stated case above
-				default: {
-					//https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-translatemessage
-					TranslateMessage(&message);
-					//https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-dispatchmessage
-					DispatchMessage(&message);
+						//will evaluate only the button related to the program
+						//Single quotes to pass a char and not a const char
+				switch (vk_code) {
+					process_button(BUTTON_UP, VK_UP);
+					process_button(BUTTON_DOWN, VK_DOWN);
+					process_button(BUTTON_LEFT, VK_LEFT);
+					process_button(BUTTON_RIGHT, VK_RIGHT);
+					process_button(BUTTON_Z, 'Z');
+					process_button(BUTTON_S, 'S');
+					process_button(BUTTON_ENTER, VK_RETURN);
+					process_button(BUTTON_ESCAPE, VK_ESCAPE);
+#if debug
+					process_button(BUTTON_SPACE, VK_SPACE);
+					process_button(BUTTON_Q, 'Q');
+					process_button(BUTTON_D, 'D');
+#endif
 				}
+
+			}break;
+						   //any message that is not related to the stated case above
+			default: {
+				//https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-translatemessage
+				TranslateMessage(&message);
+				//https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-dispatchmessage
+				DispatchMessage(&message);
+			}
 			}
 		}
 
 		//Simulates the game inside the created window
 		//takes the user's inputs and "framerate" as args
 		simulate_game(&input, delta_time);
-
 
 		//Render
 		//at first this will render a black screen because the memory is 0. meaning?
@@ -244,7 +259,6 @@ input.buttons[b].is_down = is_down;\
 		frame_begin_time = frame_end_time;
 	}
 }
-
 //rendering process :
 //get a buffer in memory
 //	first we need to know the size of the window to allocate the necessary memory (dynamic memory)
